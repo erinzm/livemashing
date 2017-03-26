@@ -39,4 +39,4 @@ def livemash(config_path):
 	launchkey = Launchkey(launchkey_portnames)
 
 	while True:
-		pass
+		time.sleep(0.5)
