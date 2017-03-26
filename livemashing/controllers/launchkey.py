@@ -56,14 +56,25 @@ class Launchkey(object):
 		self.ports['incontrol'].send(Message('control_change', channel=15,
 			control=59, value=bool_to_val(on)))
 
-	def set_drumpadled(self, led, color):
+	def set_drumpadled(self, led, color, flashcolor=None, pulsing=False):
 		if not color:
 			color = 0
 
 		submode = self.submodes['drumpads']
 
+		if pulsing:
+			assert not flashcolor
+			self.ports['incontrol'].send(Message('note_on', channel=2,
+				note=DRUMPADS[submode][led], velocity=color))
+			return
+
 		self.ports['incontrol'].send(Message('note_on', channel=15,
 			note=DRUMPADS[submode][led], velocity=color))
+
+		if flashcolor:
+			assert not pulsing
+			self.ports['incontrol'].send(Message('note_on', channel=1,
+				note=DRUMPADS[submode][led], velocity=flashcolor))
 
 	def rx(self, port, msg):
 		# logger.debug('[{}] {}'.format(port, msg))
@@ -81,6 +92,8 @@ class Launchkey(object):
 					self.set_mode('basic')
 				elif msg.note == 49:
 					self.set_mode('extended')
+				elif msg.note == 52:
+					self.set_drumpadled(0, 45, pulsing=True)
 
 	def rx_drumpads(self, port, msg):
 		submode = self.submodes['drumpads']
@@ -88,7 +101,6 @@ class Launchkey(object):
 		if msg.note in DRUMPADS[submode] and msg.channel == DRUMPAD_CHANNEL[submode]:
 			dp = DRUMPADS[submode].index(msg.note)
 			print(msg, dp)
-			self.set_drumpadled(dp, msg.velocity)
 
 	def incontrol_rx_state(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
