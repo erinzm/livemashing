@@ -16,6 +16,8 @@ def vel_to_mode(v):
 def bool_to_val(b):
 	assert type(b) is bool
 	return 127 if b else 0
+def val_to_bst(v):
+	return {127:'down', 0:'up'}[v]
 
 RESET_DRUMPADLEDS = Message('control_change', control=0, value=0)
 DRUMPADS = {
@@ -27,6 +29,11 @@ DRUMPADS = {
 DRUMPAD_CHANNEL = {'basic': 9, 'extended': 15}
 
 KNOBS = [21, 22, 23, 24, 25, 26, 27, 28]
+SLIDERS = [41, 42, 43, 44, 45, 46, 47, 48, 7]
+SBUTTONS = [51, 52, 53, 54, 55, 56, 57, 58, 59]
+
+TRANSPORT = {112: 'rev', 113: 'fwd', 114: 'stop', 115: 'play', 116: 'loop', 117: 'rec',
+				102: 'trackdown', 103: 'trackup'}
 
 class Launchkey(object):
 	def __init__(self, ports):
@@ -48,10 +55,11 @@ class Launchkey(object):
 
 		# set up default empty user callbacks
 		self._callbacks = dict(keyboard=lambda msg: None,
-			drumpad=lambda drumpad, msg: print('drumpad =', drumpad),
-			# sliders=lambda x: None,
-			knobs=lambda knob, value, msg: print('k{}, v{}'.format(knob, value)),)
-			# transport=lambda x: None)
+			drumpad=lambda drumpad, msg: None,
+			sliders=lambda slider, value, msg: None,
+			slider_buttons=lambda btn, state, msg: None,
+			knobs=lambda knob, value, msg: None,
+			transport=lambda btn, state, msg: None)
 
 	def set_mode(self, mode):
 		self.ports['incontrol'].send(SWITCH_MODE[mode])
@@ -101,6 +109,8 @@ class Launchkey(object):
 
 		self.rx_drumpads(port, msg)
 		self.rx_knobs(port, msg)
+		self.rx_sliders(port, msg)
+		self.rx_transport(port, msg)
 
 		if port == 'midi':
 			##
@@ -135,11 +145,25 @@ class Launchkey(object):
 			self._callbacks['drumpad'](dp, msg)
 
 	def rx_knobs(self, port, msg):
-		submode = self.submodes['knobs']
-
 		if msg.type == 'control_change' and msg.control in KNOBS:
 			kidx = KNOBS.index(msg.control)
 			self._callbacks['knobs'](kidx, msg.value, msg)
+
+	def rx_sliders(self, port, msg):
+		if msg.type == 'control_change':
+			if msg.control in SLIDERS:
+				sidx = SLIDERS.index(msg.control)
+				self._callbacks['sliders'](sidx, msg.value, msg)
+			elif msg.control in SBUTTONS:
+				bidx = SBUTTONS.index(msg.control)
+				state = val_to_bst(msg.value)
+				self._callbacks['slider_buttons'](bidx, state, msg)
+
+	def rx_transport(self, port, msg):
+		if msg.type == 'control_change' and msg.control in TRANSPORT.keys():
+			btn = TRANSPORT[msg.control]
+			state = val_to_bst(msg.value)
+			self._callbacks['transport'](btn, state, msg)
 
 	def incontrol_rx_state(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
