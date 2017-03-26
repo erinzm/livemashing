@@ -7,11 +7,13 @@ import logging
 import click
 import yaml
 
+import pygame
 import mido
 
 from .util.midi import locate_launchkey
 from .util import locate_config
 from .controllers import Launchkey
+from .ui import colors as clrs
 
 @click.command()
 @click.option('--config', 'config_path', default=locate_config())
@@ -38,5 +40,16 @@ def livemash(config_path):
 	logging.info("Opening Launchkey")
 	launchkey = Launchkey(launchkey_portnames)
 
+	pygame.init()
+	size = width, height = 640, 480
+	screen = pygame.display.set_mode(size)
+
 	while True:
-		time.sleep(0.5)
+	    # -- handle events
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT: sys.exit()
+
+		# -- draw
+		screen.fill(clrs.navy)
+
+		pygame.display.flip()

@@ -13,7 +13,8 @@ setup(
 		'click',
 		'PyYAML',
 
-		'mido'
+		'mido',
+		'pygame'
 	],
 
 	entry_points='''
