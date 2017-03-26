@@ -39,6 +39,7 @@ def livemash(config_path):
 
 	logging.info("Opening Launchkey")
 	launchkey = Launchkey(launchkey_portnames)
+	launchkey.set_mode('extended')
 
 	pygame.init()
 	size = width, height = 640, 480
