@@ -3,10 +3,11 @@ import logging; logger = logging.getLogger('ctrllr.launchkey')
 from functools import partial
 
 import mido
+from mido import Message
 
 SWITCH_MODE = {
-	'extended': mido.Message('note_on', note=12, velocity=127, channel=15),
-	'basic': mido.Message('note_on', note=12, velocity=0, channel=15),
+	'extended': Message('note_on', note=12, velocity=127, channel=15),
+	'basic': Message('note_on', note=12, velocity=0, channel=15),
 }
 
 SUBMODE_NOTE_MAP = {13: 'pots', 14: 'sliders', 15: 'drumpads'}
