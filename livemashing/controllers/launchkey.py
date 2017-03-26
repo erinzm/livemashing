@@ -17,6 +17,7 @@ def bool_to_val(b):
 	assert type(b) is bool
 	return 127 if b else 0
 
+RESET_DRUMPADLEDS = Message('control_change', control=0, value=0)
 class Launchkey(object):
 	def __init__(self, ports):
 		# check if we were passed pre-opened mido ports or just portnames
