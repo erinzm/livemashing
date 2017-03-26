@@ -13,6 +13,9 @@ SWITCH_MODE = {
 SUBMODE_NOTE_MAP = {13: 'pots', 14: 'sliders', 15: 'drumpads'}
 def vel_to_mode(v):
 	return {0: 'basic', 127: 'extended'}[v]
+def bool_to_val(b):
+	assert type(b) is bool
+	return 127 if b else 0
 
 class Launchkey(object):
 	def __init__(self, ports):
@@ -36,6 +39,13 @@ class Launchkey(object):
 		self.ports['incontrol'].send(SWITCH_MODE[mode])
 		logger.debug("Sent mode switch cmd ({} -> {})".format(self.mode, mode))
 
+	def reset_drumpadleds(self):
+		logger.debug("Resetting drumpad LEDs")
+		self.ports['incontrol'].send(RESET_DRUMPADLEDS)
+
+	def set_muteled(self, on):
+		self.ports['incontrol'].send(Message('control_change', channel=15,
+			control=59, value=bool_to_val(on)))
 	def rx(self, port, msg):
 		# logger.debug('[{}] {}'.format(port, msg))
 
