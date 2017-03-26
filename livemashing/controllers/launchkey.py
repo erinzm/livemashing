@@ -32,10 +32,10 @@ class Launchkey(object):
 
 		# force the controller to basic mode
 		self.mode = None
-		self.setMode('basic')
+		self.set_mode('basic')
 		self.submodes = {'sliders': 'basic', 'pots': 'basic', 'drumpads': 'basic'}
 
-	def setMode(self, mode):
+	def set_mode(self, mode):
 		self.ports['incontrol'].send(SWITCH_MODE[mode])
 		logger.debug("Sent mode switch cmd ({} -> {})".format(self.mode, mode))
 
@@ -57,9 +57,9 @@ class Launchkey(object):
 			# temporary test code; replace with real layer hooks later
 			if msg.type == 'note_on':
 				if msg.note == 48:
-					self.setMode('basic')
+					self.set_mode('basic')
 				elif msg.note == 49:
-					self.setMode('extended')
+					self.set_mode('extended')
 
 	def incontrol_rx(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
