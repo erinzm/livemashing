@@ -25,7 +25,7 @@ def livemash(config_path):
 		config = yaml.safe_load(f) or {}
 	logging.info("Successfully loaded config.")
 
-	_backend = config.get('midi', {}) or 'mido.backends.rtmidi'
+	_backend = config.get('midi', {}).get('backend') or 'mido.backends.rtmidi'
 	logging.info("Setting mido backend to {}".format(_backend))
 	mido.set_backend(_backend)
 
