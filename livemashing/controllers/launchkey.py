@@ -18,6 +18,14 @@ def bool_to_val(b):
 	return 127 if b else 0
 
 RESET_DRUMPADLEDS = Message('control_change', control=0, value=0)
+DRUMPADS = {
+	'basic': [40, 41, 42, 43,    48, 49, 50, 51,
+			  36, 37, 38, 39,    44, 45, 46, 47],
+	'extended': [96,  97,  98,  99,    100, 101, 102, 103,
+				 112, 113, 114, 115,   116, 117, 118, 119],
+}
+DRUMPAD_CHANNEL = {'basic': 9, 'extended': 15}
+
 class Launchkey(object):
 	def __init__(self, ports):
 		# check if we were passed pre-opened mido ports or just portnames
@@ -47,22 +55,42 @@ class Launchkey(object):
 	def set_muteled(self, on):
 		self.ports['incontrol'].send(Message('control_change', channel=15,
 			control=59, value=bool_to_val(on)))
+
+	def set_drumpadled(self, led, color):
+		if not color:
+			color = 0
+
+		submode = self.submodes['drumpads']
+
+		self.ports['incontrol'].send(Message('note_on', channel=15,
+			note=DRUMPADS[submode][led], velocity=color))
+
 	def rx(self, port, msg):
 		# logger.debug('[{}] {}'.format(port, msg))
 
-		# dispatch messages
 		if port == 'incontrol':
-			self.incontrol_rx(msg)
+			self.incontrol_rx_state(msg)
+
+		self.rx_drumpads(port, msg)
+
 		if port == 'midi':
 			##
 			# temporary test code; replace with real layer hooks later
-			if msg.type == 'note_on':
+			if msg.type == 'note_on' and msg.channel==0:
 				if msg.note == 48:
 					self.set_mode('basic')
 				elif msg.note == 49:
 					self.set_mode('extended')
 
-	def incontrol_rx(self, msg):
+	def rx_drumpads(self, port, msg):
+		submode = self.submodes['drumpads']
+
+		if msg.note in DRUMPADS[submode] and msg.channel == DRUMPAD_CHANNEL[submode]:
+			dp = DRUMPADS[submode].index(msg.note)
+			print(msg, dp)
+			self.set_drumpadled(dp, msg.velocity)
+
+	def incontrol_rx_state(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
 			if msg.note == 12:
 				self.mode = vel_to_mode(msg.velocity)
@@ -72,7 +100,5 @@ class Launchkey(object):
 				submode = SUBMODE_NOTE_MAP[msg.note]
 				self.submodes[submode] = vel_to_mode(msg.velocity)
 
-			print(self.mode, self.submodes)
-
 	def __repr__(self):
-		return '<Launchkey mode: {self.mode}, ports: {self.ports}>'.format(self=self)
+		return '<Launchkey mode: {self.mode}, submodes: {self.submodes}>'.format(self=self)
