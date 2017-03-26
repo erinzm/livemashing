@@ -10,7 +10,7 @@ SWITCH_MODE = {
 	'basic': Message('note_on', note=12, velocity=0, channel=15),
 }
 
-SUBMODE_NOTE_MAP = {13: 'pots', 14: 'sliders', 15: 'drumpads'}
+SUBMODE_NOTE_MAP = {13: 'knobs', 14: 'sliders', 15: 'drumpads'}
 def vel_to_mode(v):
 	return {0: 'basic', 127: 'extended'}[v]
 def bool_to_val(b):
@@ -25,6 +25,8 @@ DRUMPADS = {
 				 112, 113, 114, 115,   116, 117, 118, 119,   104, 120],
 }
 DRUMPAD_CHANNEL = {'basic': 9, 'extended': 15}
+
+KNOBS = [21, 22, 23, 24, 25, 26, 27, 28]
 
 class Launchkey(object):
 	def __init__(self, ports):
@@ -42,13 +44,13 @@ class Launchkey(object):
 		# force the controller to basic mode
 		self.mode = None
 		self.set_mode('basic')
-		self.submodes = {'sliders': 'basic', 'pots': 'basic', 'drumpads': 'basic'}
+		self.submodes = {'sliders': 'basic', 'knobs': 'basic', 'drumpads': 'basic'}
 
 		# set up default empty user callbacks
 		self._callbacks = dict(keyboard=lambda msg: None,
-			drumpad=lambda drumpad, msg: print(drumpad, msg),)
+			drumpad=lambda drumpad, msg: print('drumpad =', drumpad),
 			# sliders=lambda x: None,
-			# knobs=lambda x: None,
+			knobs=lambda knob, value, msg: print('k{}, v{}'.format(knob, value)),)
 			# transport=lambda x: None)
 
 	def set_mode(self, mode):
@@ -98,6 +100,7 @@ class Launchkey(object):
 			self.incontrol_rx_state(msg)
 
 		self.rx_drumpads(port, msg)
+		self.rx_knobs(port, msg)
 
 		if port == 'midi':
 			##
@@ -109,7 +112,7 @@ class Launchkey(object):
 					self.set_mode('extended')
 				elif msg.note == 52:
 					for dp in range(len(DRUMPADS[self.mode])):
-						self.set_drumpadled(dp, (dp+1)*3, flashcolor=3)
+						self.set_drumpadled(dp, (dp+2)*3, flashcolor=(dp+3)*3)
 
 	def rx_drumpads(self, port, msg):
 		submode = self.submodes['drumpads']
@@ -130,6 +133,13 @@ class Launchkey(object):
 		if msg.note in DRUMPADS[submode] and msg.channel == DRUMPAD_CHANNEL[submode]:
 			dp = DRUMPADS[submode].index(msg.note)
 			self._callbacks['drumpad'](dp, msg)
+
+	def rx_knobs(self, port, msg):
+		submode = self.submodes['knobs']
+
+		if msg.type == 'control_change' and msg.control in KNOBS:
+			kidx = KNOBS.index(msg.control)
+			self._callbacks['knobs'](kidx, msg.value, msg)
 
 	def incontrol_rx_state(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
