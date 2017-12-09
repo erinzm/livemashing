@@ -16,4 +16,4 @@ gray = (0xaa, 0xaa, 0xaa)
 silver = (0xdd, 0xdd, 0xdd)
 
 _all = [navy, blue, aqua, teal, olive, green, lime, yellow,
-       orange, red, maroon, fuchsia, purple, black, gray, silver]
+        orange, red, maroon, fuchsia, purple, black, gray, silver]

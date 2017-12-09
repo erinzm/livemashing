@@ -115,27 +115,21 @@ class Launchkey(object):
 			send_ledctrl(submode, 1, led, flashcolor)
 
 	def rx(self, port, msg):
-		logger.debug('[{}] {}'.format(port, msg))
+		# logger.debug('[{}] {}'.format(port, msg))
 
 		if port == 'incontrol':
 			self.incontrol_rx_state(msg)
 
-		self.rx_drumpads(port, msg)
-		self.rx_knobs(port, msg)
-		self.rx_sliders(port, msg)
-		self.rx_transport(port, msg)
+		if any([self.rx_drumpads(port, msg),
+			self.rx_knobs(port, msg),
+			self.rx_sliders(port, msg),
+			self.rx_transport(port, msg)]):
+			return
 
 		if port == 'midi':
-			##
-			# temporary test code; replace with real layer hooks later
-			if msg.type == 'note_on' and msg.channel==0:
-				if msg.note == 48:
-					self.set_mode('basic')
-				elif msg.note == 49:
-					self.set_mode('extended')
-				elif msg.note == 52:
-					for dp in range(len(DRUMPADS[self.mode])):
-						self.set_drumpadled(dp, (dp+2)*3, flashcolor=(dp+3)*3)
+			# fall through; if nothing handled it before it's just plain old keyboard stuff
+			self._callbacks['keyboard'](msg)
+
 
 	def rx_drumpads(self, port, msg):
 		submode = self.submodes['drumpads']
@@ -147,30 +141,43 @@ class Launchkey(object):
 				note=DRUMPADS['extended'][dp],
 				velocity=msg.value, channel=15) # normalize to extended format
 			self._callbacks['drumpad'](dp, m)
-			return
+
+			return True
 
 		if not msg.type in ['note_on', 'note_off']:
-			return
-
+			return False
 
 		if msg.note in DRUMPADS[submode] and msg.channel == DRUMPAD_CHANNEL[submode]:
 			dp = DRUMPADS[submode].index(msg.note)
 			self._callbacks['drumpad'](dp, msg)
+			return True
+
+		return False
 
 	def rx_knobs(self, port, msg):
 		if msg.type == 'control_change' and msg.control in KNOBS:
 			kidx = KNOBS.index(msg.control)
 			self._callbacks['knobs'](kidx, msg.value, msg)
 
+			return True
+
+		return False
+
 	def rx_sliders(self, port, msg):
 		if msg.type == 'control_change':
 			if msg.control in SLIDERS:
 				sidx = SLIDERS.index(msg.control)
 				self._callbacks['sliders'](sidx, msg.value, msg)
+
+				return True
 			elif msg.control in SBUTTONS:
 				bidx = SBUTTONS.index(msg.control)
 				state = val_to_bst(msg.value)
 				self._callbacks['slider_buttons'](bidx, state, msg)
+
+				return True
+
+		return False
 
 	def rx_transport(self, port, msg):
 		if msg.type == 'control_change' and msg.control in TRANSPORT.keys():
@@ -178,15 +185,25 @@ class Launchkey(object):
 			state = val_to_bst(msg.value)
 			self._callbacks['transport'](btn, state, msg)
 
+			return True
+
+		return False
+
 	def incontrol_rx_state(self, msg):
 		if msg.type == 'note_on' and msg.channel == 15:
 			if msg.note == 12:
 				self.mode = vel_to_mode(msg.velocity)
 				self.submodes = dict.fromkeys(self.submodes, self.mode)
 
+				return True
+
 			if msg.note in SUBMODE_NOTE_MAP.keys():
 				submode = SUBMODE_NOTE_MAP[msg.note]
 				self.submodes[submode] = vel_to_mode(msg.velocity)
+
+				return True
+
+		return False
 
 	def __repr__(self):
 		return '<Launchkey mode: {self.mode}, submodes: {self.submodes}>'.format(self=self)
