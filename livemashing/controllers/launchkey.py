@@ -1,5 +1,6 @@
 import logging; logger = logging.getLogger('ctrllr.launchkey')
 
+import re
 from functools import partial
 
 import mido
@@ -36,6 +37,18 @@ TRANSPORT = {112: 'rev', 113: 'fwd', 114: 'stop', 115: 'play', 116: 'loop', 117:
 				102: 'trackdown', 103: 'trackup'}
 
 class Launchkey(object):
+	@staticmethod
+	def locate(devices):
+		launchkey = sorted([d for d in devices
+			if re.search(r'Launchkey( MK2)?', d)],
+			key=lambda x: re.search(r'MIDI (\d)+', x).group(1))
+
+		if len(launchkey) > 0:
+			return tuple(launchkey)
+		else:
+			return None
+
+
 	def __init__(self, ports):
 		# check if we were passed pre-opened mido ports or just portnames
 		if all([type(p) is str for p in ports]):

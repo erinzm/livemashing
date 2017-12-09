@@ -1,0 +1,8 @@
+midi:
+  backend: mido.backends.rtmidi
+
+controllers:
+  - launchkey:
+    startup_mode: extended
+    layers:
+      - mastervol

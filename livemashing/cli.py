@@ -1,8 +1,9 @@
 import sys
 import time
 import random
-
+import importlib
 import logging
+from collections import defaultdict
 
 import click
 import yaml
@@ -10,9 +11,8 @@ import yaml
 import pygame
 import mido
 
-from .util.midi import locate_launchkey
 from .util import locate_config
-from .controllers import Launchkey
+from .controllers import CONTROLLERDB
 from .ui import colors as clrs
 
 @click.command()
@@ -20,37 +20,61 @@ from .ui import colors as clrs
 def livemash(config_path):
 	logging.basicConfig(level=logging.DEBUG)
 
-	logging.info("Loading config from {}".format(config_path))
+	# -- load config
+	logging.info("Attempting config load from `{}`...".format(config_path))
 	with open(config_path) as f:
 		config = yaml.safe_load(f) or {}
 	logging.info("Successfully loaded config.")
 
+	# -- midi startup, enumeration
 	_backend = config.get('midi', {}).get('backend') or 'mido.backends.rtmidi'
-	logging.info("Setting mido backend to {}".format(_backend))
+	logging.info("Setting mido backend to `{}`".format(_backend))
 	mido.set_backend(_backend)
 
-	midi_ins = mido.get_input_names()
-	logging.info("Found midi inputs: {}".format(midi_ins))
+	midi_ios = mido.get_ioport_names()
+	logging.info("Found {} midi i/os:".format(len(midi_ios)))
+	for m in midi_ios: logging.info("\t{}".format(m))
 
-	launchkey_portnames = locate_launchkey(midi_ins)
-	if not launchkey_portnames:
-		logging.error("Launchkey not found!"); sys.exit()
-	logging.info("Found Launchkey ports: {}".format(launchkey_portnames))
+	# -- set up controllers
+	controllers = []
+	for ctrl_conf in config.get('controllers', []):
+		shortname = next(iter(ctrl_conf))
+		cclass = CONTROLLERDB[shortname]
+		logging.info("Adding controller: {cclass.__module__}.{cclass.__name__}".format(cclass=cclass))
 
-	logging.info("Opening Launchkey")
-	launchkey = Launchkey(launchkey_portnames)
-	launchkey.set_mode('extended')
+		portnames = cclass.locate(midi_ios)
+		logging.debug("\tFound MIDI I/Os belonging to controller:")
+		for p in portnames: logging.debug("\t\t{}".format(p))
 
-	pygame.init()
-	size = width, height = 640, 480
-	screen = pygame.display.set_mode(size)
+		logging.debug("\t Instantiating controller")
+		controller = cclass(portnames)
 
+		logging.debug("\t Running startup config")
+		if hasattr(controller, 'set_mode'):
+			controller.set_mode(ctrl_conf['startup_mode'])
+
+		layers_mod = getattr(__import__('livemashing.layers', fromlist=[shortname]), shortname)
+		callbacks = defaultdict(lambda: [])
+		for layername in ctrl_conf.get('layers', []):
+			logging.debug("\t Attaching layer `{}`".format(layername))
+			layer = layers_mod.LAYERS[layername](controller)
+			for k, v in layer.callbacks().items():
+				callbacks[k].append(v)
+
+		# multi-callback dispatcher (ugly af)
+		for n, functions in callbacks.items():
+			controller._callbacks[n] = \
+				lambda *args, functions=functions, **kwargs: \
+					[f(*args, **kwargs) for f in functions]
+
+		# controller._callbacks['slider_buttons'] = lambda *args: print('sb')
+		# controller._callbacks['slider'] = lambda *args: print('s')
+
+		controller._callbacks['slider_buttons'](None, None, None)
+
+		controllers.append(controller)
+
+
+	logging.info("Entering main loop")
 	while True:
-	    # -- handle events
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT: sys.exit()
-
-		# -- draw
-		screen.fill(clrs.navy)
-
-		pygame.display.flip()
+		time.sleep(0.5)
